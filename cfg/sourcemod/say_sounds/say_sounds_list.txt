@@ -1,0 +1,21 @@
+//------------------------------------------------
+//-To add a new sound, use the following format:
+//
+//	".chat_trigger"
+//	{
+//		"path" "<path>"
+//	}
+//
+//-The dot before the "chat_trigger" is IMPORTANT and without it it won't work
+//
+//-Remove the // before "sounds" to load the sounds
+//------------------------------------------------
+
+
+//"sounds"
+{
+	".example"
+	{
+		"path"	"say_sounds/example.mp3"
+	}
+}

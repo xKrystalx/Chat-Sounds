@@ -31,11 +31,12 @@ Handle h_Volume = null;
 Handle h_Delay = null;
 //Handle h_Interval = null;
 Handle h_Debug = null;
+Handle h_Display = null;
 
 StringMap soundstable = null;
 KeyValues kv_sounds = null;
 
-int snd_debug = 0;
+int snd_debug = 0, snd_display = 0;
 float snd_volume = 0.0, cooldown_time = 0.0, client_delay[MAXPLAYERS+1] = {0.0};
 
 public void OnPluginStart()
@@ -52,6 +53,7 @@ public void OnPluginStart()
 	//h_Interval = CreateConVar("sm_sounds_interval", "0.5", "Amount of time in between the sounds, before a player can execute another one (applies only to that player)", FCVAR_NONE, true, 0.0, false, 0.0);
 	h_Delay = CreateConVar("sm_sounds_delay", "5.0", "Delay between each sound a player can execute", FCVAR_NONE, true, 0.0, false, 20.0);
 	h_Debug = CreateConVar("sm_sounds_debug", "1", "Log plugin actions and player executes", FCVAR_NONE, true, 0.0, true, 1.0);
+	h_Display = CreateConVar("sm_sounds_display", "1", "Enable/Disable the message triggers from displaying in chat", FCVAR_NONE, true, 0.0, true, 1.0);
 	
 	RegAdminCmd("sm_sounds_reload", Command_SoundsReload, ADMFLAG_CONVARS, "Reload the sound file");
 	RegAdminCmd("sm_sounds_config_reload", Command_ConfigReload, ADMFLAG_CONVARS, "Reload the plugin config");
@@ -100,6 +102,7 @@ public void ReloadConfig()
 	cooldown_time = GetConVarFloat(h_Delay);
 	snd_volume = GetConVarFloat(h_Volume);
 	snd_debug = GetConVarInt(h_Debug);
+	snd_display = GetConVarInt(h_Display);
 }
 
 public void ReloadSoundList()
@@ -153,12 +156,7 @@ public Action OnChatMessage(int &client, Handle recipients, char[] name, char[] 
 	if(message[0] != '.')
 	{
 		return Plugin_Handled;
-	}
-	
-	if(GetGameTime() <= client_delay[client])	//player is on cooldown
-	{
-		return Plugin_Handled;
-	}
+	}	
 	
 	char buffer_sound_path[PLATFORM_MAX_PATH];
 	float pos[3];
@@ -166,6 +164,15 @@ public Action OnChatMessage(int &client, Handle recipients, char[] name, char[] 
 	GetEntPropVector(client, Prop_Send, "m_vecOrigin", pos);
 	if(!soundstable.GetString(message, buffer_sound_path, sizeof(buffer_sound_path)))
 	{
+		return Plugin_Handled;
+	}
+	
+	if(GetGameTime() <= client_delay[client])	//player is on cooldown
+	{
+		if(!snd_display)		//do we want to display the message
+		{
+			return Plugin_Stop;		//don't send the message
+		}
 		return Plugin_Handled;
 	}
 	
@@ -178,6 +185,10 @@ public Action OnChatMessage(int &client, Handle recipients, char[] name, char[] 
 		char player[128];
 		GetClientName(client, player, sizeof(player));
 		LogAction(client, -1, "[Chat Sounds] %s has played a sound: %s", player, buffer_sound_path);
+	}
+	if(!snd_display)
+	{
+		return Plugin_Stop;
 	}
 	return Plugin_Handled;
 }
