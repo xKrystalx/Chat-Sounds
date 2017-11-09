@@ -4,9 +4,10 @@
 //	".chat_trigger"
 //	{
 //		"path" "<path>"
+//		"volume" "<0.0 - 1.0>"
 //	}
 //
-//-The dot before the "chat_trigger" is IMPORTANT and without it it won't work
+//-The dot before the "chat_trigger" is IMPORTANT and without it, it won't work
 //
 //-Remove the // before "sounds" to load the sounds
 //------------------------------------------------
@@ -17,5 +18,6 @@
 	".example"
 	{
 		"path"	"say_sounds/example.mp3"
+		"volume" "1.00"
 	}
 }

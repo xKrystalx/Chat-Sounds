@@ -4,6 +4,7 @@
 
 #define PLUGIN_AUTHOR "Punky"
 #define PLUGIN_VERSION "1.0"
+#define MAP_MAX_LENGTH 128
 
 #include <sourcemod>
 #include <sdktools>
@@ -34,6 +35,7 @@ Handle h_Debug = null;
 Handle h_Display = null;
 
 StringMap soundstable = null;
+StringMap volumetable = null;
 KeyValues kv_sounds = null;
 
 int snd_debug = 0, snd_display = 0;
@@ -48,15 +50,20 @@ public void OnPluginStart()
 	}
 	
 	//h_Enabled = CreateConVar("sm_sounds_enabled", "1", "Enable/Disable sound playback from chat", FCVAR_NONE, true, 0.0, true, 1.0);
-	h_Volume = CreateConVar("sm_sounds_volume", "1.0", "Determines the volume of the sound at its origin", FCVAR_NONE, true, 0.0, true, 1.0);
+	h_Volume = CreateConVar("sm_sounds_volume", "1.0", "Volume multiplier for each of the sounds", FCVAR_NONE, true, 0.0, true, 1.0);
 	//h_Amount = CreateConVar("sm_sounds_amount", "3", "Determines the amount of sounds a player can execute in a given timeframe", FCVAR_NONE, true, 0.0, true, 20.0);
 	//h_Interval = CreateConVar("sm_sounds_interval", "0.5", "Amount of time in between the sounds, before a player can execute another one (applies only to that player)", FCVAR_NONE, true, 0.0, false, 0.0);
 	h_Delay = CreateConVar("sm_sounds_delay", "5.0", "Delay between each sound a player can execute", FCVAR_NONE, true, 0.0, false, 20.0);
 	h_Debug = CreateConVar("sm_sounds_debug", "1", "Log plugin actions and player executes", FCVAR_NONE, true, 0.0, true, 1.0);
 	h_Display = CreateConVar("sm_sounds_display", "1", "Enable/Disable the message triggers from displaying in chat", FCVAR_NONE, true, 0.0, true, 1.0);
 	
+	HookConVarChange(h_Volume, OnConVarChange);
+	HookConVarChange(h_Delay, OnConVarChange);
+	HookConVarChange(h_Debug, OnConVarChange);
+	HookConVarChange(h_Display, OnConVarChange);
+	
 	RegAdminCmd("sm_sounds_reload", Command_SoundsReload, ADMFLAG_CONVARS, "Reload the sound file");
-	RegAdminCmd("sm_sounds_config_reload", Command_ConfigReload, ADMFLAG_CONVARS, "Reload the plugin config");
+	//RegAdminCmd("sm_sounds_config_reload", Command_ConfigReload, ADMFLAG_CONVARS, "Reload the plugin config");
 }
 
 public void OnMapStart()
@@ -92,7 +99,12 @@ public Action Command_SoundsReload(int args, int client)
 	ReloadSoundList();
 }
 
-public Action Command_ConfigReload(int args, int client)
+/*public Action Command_ConfigReload(int args, int client)
+{
+	ReloadConfig();
+}*/
+
+public OnConVarChange(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	ReloadConfig();
 }
@@ -107,11 +119,13 @@ public void ReloadConfig()
 
 public void ReloadSoundList()
 {
-	char buffer_sound_path[PLATFORM_MAX_PATH], buffer_sound_path_download[PLATFORM_MAX_PATH], buffer_sound_name[64];
+	char buffer_sound_path[PLATFORM_MAX_PATH], buffer_sound_path_download[PLATFORM_MAX_PATH], buffer_sound_name[MAP_MAX_LENGTH];		//creating an array to store path and volume for those sounds
+	float buffer_sound_volume;
 	kv_sounds = new KeyValues("sounds");
 	kv_sounds.ImportFromFile("cfg/sourcemod/say_sounds/say_sounds_list.txt");
 	
 	soundstable = new StringMap();
+	volumetable = new StringMap();
 	
 	if(kv_sounds.GotoFirstSubKey())
 	{
@@ -119,19 +133,24 @@ public void ReloadSoundList()
 		{
 			kv_sounds.GetSectionName(buffer_sound_name, sizeof(buffer_sound_name));
 			kv_sounds.GetString("path", buffer_sound_path, sizeof(buffer_sound_path), "");
+			buffer_sound_volume = kv_sounds.GetFloat("volume", 0.0);
 			soundstable.SetString(buffer_sound_name, buffer_sound_path, true);	//store the sounds in a hash map, so we don't open the .txt file over and over
+			volumetable.SetValue(buffer_sound_name, buffer_sound_volume, true);
 			
 			Format(buffer_sound_path_download, sizeof(buffer_sound_path_download), "sound/%s", buffer_sound_path);
-			LogAction(-1, -1, "[Chat Sounds] Adding a sound to the download list: %s", buffer_sound_path_download);
+			if(snd_debug)
+			{
+				LogAction(-1, -1, "[Chat Sounds] Adding a sound to the download list: %s", buffer_sound_path_download);
+			}
 			AddFileToDownloadsTable(buffer_sound_path_download);
 			
 			if(PrecacheSound(buffer_sound_path, true))
 			{
-				LogAction(-1, -1, "[Chat Sounds] Found and precached a sound: %s", buffer_sound_path);
+				LogAction(-1, -1, "[Chat Sounds] Found and precached a sound: %s  [Volume: %.2f]", buffer_sound_path, buffer_sound_volume);
 			}
 			else
 			{
-				LogAction(-1, -1, "[Chat Sounds] Failed to precache a sound: %s", buffer_sound_path);
+				LogAction(-1, -1, "[Chat Sounds] Failed to precache a sound: %s   [Volume: %.2f]", buffer_sound_path, buffer_sound_volume);
 			}
 		}
 		while (kv_sounds.GotoNextKey());
@@ -159,11 +178,24 @@ public Action OnChatMessage(int &client, Handle recipients, char[] name, char[] 
 	}	
 	
 	char buffer_sound_path[PLATFORM_MAX_PATH];
+	float buffer_sound_volume;
 	float pos[3];
 	
 	GetEntPropVector(client, Prop_Send, "m_vecOrigin", pos);
 	if(!soundstable.GetString(message, buffer_sound_path, sizeof(buffer_sound_path)))
 	{
+		if(snd_debug)
+		{
+			LogAction(-1, -1, "[Chat Sounds] Couldn't find the requested sound path.");
+		}
+		return Plugin_Handled;
+	}
+	if(!volumetable.GetValue(message, buffer_sound_volume))
+	{
+		if(snd_debug)
+		{
+			LogAction(-1, -1, "[Chat Sounds] Couldn't find volume parameters.");
+		}
 		return Plugin_Handled;
 	}
 	
@@ -179,10 +211,10 @@ public Action OnChatMessage(int &client, Handle recipients, char[] name, char[] 
 	client_delay[client] = GetGameTime() + cooldown_time; //sound exists and will be played so put the player on cooldown
 	
 	//EmitAmbientSoundAny(buffer_sound_path, pos, client, SNDLEVEL_NORMAL, SND_NOFLAGS, GetConVarFloat(h_Volume), SNDPITCH_NORMAL, 0.0);	//play the sound from the player
-	EmitSoundToAll(buffer_sound_path, client, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, snd_volume, SNDPITCH_NORMAL, 0.0);
+	EmitSoundToAll(buffer_sound_path, client, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, buffer_sound_volume * snd_volume, SNDPITCH_NORMAL);	//we will multiply the individual volume values by the global multiplier
 	if(snd_debug)
 	{
-		char player[128];
+		char player[MAX_NAME_LENGTH];
 		GetClientName(client, player, sizeof(player));
 		LogAction(client, -1, "[Chat Sounds] %s has played a sound: %s", player, buffer_sound_path);
 	}
