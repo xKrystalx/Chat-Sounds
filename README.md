@@ -10,10 +10,10 @@ Chat sounds that play from activators origin
 
 # Cvars:
 
-sm_sounds_volume <0.0 - 1.0> Set the global volume multiplier
-sm_sounds_delay <0.0 - infinity> Set the delay between uses for each player
-sm_sounds_debug <0 - 1> Display debug information in server console
-sm_sounds_display <0 - 1> Display chat messages that trigger the sounds
+- sm_sounds_volume <0.0 - 1.0> Set the global volume multiplier
+- sm_sounds_delay <0.0 - infinity> Set the delay between uses for each player
+- sm_sounds_debug <0 - 1> Display debug information in server console
+- sm_sounds_display <0 - 1> Display chat messages that trigger the sounds
 
 # Commands
 
