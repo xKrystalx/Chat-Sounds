@@ -9,7 +9,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <cstrike>
-//#include <emitsoundany>
+#include <emitsoundany>
 #include <scp>		//simple chat processor
 //#include <sdkhooks>
 
@@ -144,7 +144,7 @@ public void ReloadSoundList()
 			}
 			AddFileToDownloadsTable(buffer_sound_path_download);
 			
-			if(PrecacheSound(buffer_sound_path, true))
+			if(PrecacheSoundAny(buffer_sound_path, true))
 			{
 				LogAction(-1, -1, "[Chat Sounds] Found and precached a sound: %s  [Volume: %.2f]", buffer_sound_path, buffer_sound_volume);
 			}
@@ -211,7 +211,7 @@ public Action OnChatMessage(int &client, Handle recipients, char[] name, char[] 
 	client_delay[client] = GetGameTime() + cooldown_time; //sound exists and will be played so put the player on cooldown
 	
 	//EmitAmbientSoundAny(buffer_sound_path, pos, client, SNDLEVEL_NORMAL, SND_NOFLAGS, GetConVarFloat(h_Volume), SNDPITCH_NORMAL, 0.0);	//play the sound from the player
-	EmitSoundToAll(buffer_sound_path, client, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, buffer_sound_volume * snd_volume, SNDPITCH_NORMAL);	//we will multiply the individual volume values by the global multiplier
+	EmitSoundToAllAny(buffer_sound_path, client, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, buffer_sound_volume * snd_volume, SNDPITCH_NORMAL);	//we will multiply the individual volume values by the global multiplier
 	if(snd_debug)
 	{
 		char player[MAX_NAME_LENGTH];
